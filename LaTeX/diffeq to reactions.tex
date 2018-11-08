@@ -1,0 +1,251 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[version=4]{mhchem}
+\usepackage{mathtools}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{booktabs}
+
+\begin{document}
+
+\section{Species}
+\begin{table}[h]
+\captionof{table}{Species Variables} \label{tab:title}
+\begin{tabular}{ll}
+Name    & Description            \\ \hline
+S       & Anthrax Spore          \\
+A       & Macrophage             \\
+H       & Host/Infected Cell     \\
+E       & Lymphocyte             \\
+$B_e$   & Extracellular Bacteria \\
+N       & Neutrophil             \\
+$T_A$   & Anthrax Toxin          \\
+\end{tabular}\par
+\bigskip
+\centering
+{This table lists the variable names used in the GillesPy2 model object.}
+\end{table}
+\newpage
+\section{Differential Equations from Day Paper}
+The equations below are used to form reaction pairs. \\
+
+\hrule
+
+\begin{flalign}
+        & \frac{dS}{dt} = -k_2S \frac{s_A}{k_2S+\mu_A} &
+\end{flalign}
+
+\begin{flalign}
+        & \frac{dH}{dt} = \frac{k_2S \frac{s_A}{k_2 S + \mu_A}}{n_s}\qquad - k_3H &
+\end{flalign}
+
+\begin{flalign}
+        & \frac{dE}{dt} = S_E\quad - \mu_E E\quad - k_1 B_e E &
+\end{flalign}
+
+\begin{flalign}
+        & \frac{dB_e}{dt} = k_3 n_B H\quad + k_5 B_e (1 - \frac{B_e}{B_{emax}})\quad - k_6 E B_e\quad - \frac{k_8 N B_e}{1+ \frac{T_A}{C_{t1}}} &
+\end{flalign}
+    
+\begin{flalign}
+        & \frac{dN}{dt} = \frac{k_9 B_e E N_0}{1 + \frac{T_A}{C_{t2}}}\quad + \frac{k_{10} N N_0}{1 + \frac{T_A}{C_{t3}}}\quad - \mu_N N &
+\end{flalign}
+    
+\begin{flalign}
+        & \frac{dT_A}{dt} = k_4\frac{B_e}{C_{tb} + B_e}\quad - \mu_{T_A} T &
+\end{flalign}
+
+\newpage
+
+\section{Translating Equations to GillesPy2 Reactions}
+\begin{center}
+    (1) $\displaystyle \frac{dS}{dt} = -k_2S \frac{s_A}{k_2S+\mu_A}$ \qquad 
+    (2) $\displaystyle \frac{dH}{dt} = \frac{k_2S \frac{s_A}{k_2 S + \mu_A}}{n_s}\qquad - k_3H$
+\end{center}
+Because equation (2) takes up what decays in (1), we can combine them to see that Spores are converted into intralung Host cells at a given rate, or propensity function:
+
+\begin{center}
+    \ce{$n_s$ S ->[$p_1$] H_0} \\
+    where \\
+    $p_1$ = $\displaystyle \frac{k_2 S \frac{s_A}{k_2 S + \mu_A}}{n_s}$
+\end{center}
+
+The second term in equation (2) is the migration of Host cells to the lymph node. Thus we get
+
+\begin{center}
+    \ce{$H_0$ ->[$k_3$] $H_{LN}$} \\
+\end{center}
+
+\hrule
+
+\begin{center}
+        (3) $\displaystyle \frac{dE}{dt} = S_E\quad - \mu_E E\quad - k_1 B_e E $
+\end{center}
+
+The first term in equation (3) supplies lymphocytes. Thus
+
+\begin{center}
+    \ce{$\emptyset$ ->[$S_E$] E}
+\end{center}
+
+The second term in equation (3) is the natural decay of lymphocytes:
+
+\begin{center}
+    \ce{E ->[$\mu_E$] $\emptyset$}
+\end{center}
+
+The third term in equation (3) is death of lymphocytes from bacteria/toxins:
+
+\begin{center}
+    \ce{E + B_e ->[$k_1$] $\emptyset$} \\
+    * Note: Not sure if I should read this as \ce{E ->[$k_1 B_e$] $\emptyset$} instead
+\end{center}
+
+
+\hrule
+
+\begin{center}
+        (4) $\displaystyle \frac{dB_e}{dt} = k_3 n_B H\quad + k_5 B_e (1 - \frac{B_e}{B_{emax}})\quad - k_6 E B_e\quad - \frac{k_8 N B_e}{1+ \frac{T_A}{C_{t1}}} $
+\end{center}
+
+The first term in equation (4) is the production of vegetative bacteria released from a Host cell:
+
+\begin{center}
+    \ce{H_{LN} ->[$k_3n_BH$] $B_e$}
+\end{center}
+
+The second term in equation (4) is production of extracellular bacteria:
+
+\begin{center}
+    \ce{$\emptyset$ ->[$p_7$] $B_e$}\\
+    where\\
+    $p_7$ = $k_5 \cdot (1 - \frac{B_e}{B_{emax}})$
+\end{center}
+
+\pagebreak
+
+The third term in equation (4) is decay of extracellular bacteria by neutrophils:
+
+\begin{center}
+    \ce{E + B_e ->[$k_6$] $\emptyset$} \\
+    * Note: I also thought this might be interpreted as \ce{B_e ->[$k_6 E$] $\emptyset$}
+\end{center}
+
+
+The fourth term in equation (4) is loss of extracellular bacteria by neutrophils:
+
+\begin{center}
+    \ce{N + B_e ->[$p_9$] $\emptyset$}\\
+    where\\
+    $p_9$ = $\frac{k_8 \cdot N \cdot B_e}{1 + (\frac{T_A}{C_{t1}})}$
+\end{center}
+
+\hrule
+\begin{center}
+        (5) $\displaystyle \frac{dN}{dt} = \frac{k_9 B_e E N_0}{1 + \frac{T_A}{C_{t2}}}\quad + \frac{k_{10} N N_0}{1 + \frac{T_A}{C_{t3}}}\quad - \mu_N N $
+\end{center}
+
+The first term in equation (5) is recruitment of neutrophils via signals from dying lymphocytes (inhibited by toxin):
+
+\begin{center}
+    \ce{$B_e$ + E ->[$p_{10}$] N}\\
+    where\\
+    $p_{10}$ = $\frac{k_9 \cdot B_e \cdot N_0}{1 + (\frac{T_A}{C_{t2}})}$
+\end{center}
+
+The second term in equation (5) is further recruitment of neutrophils by other active neutrophils (inhibited by toxin):
+
+\begin{center}
+    \ce{N ->[$p_{11}$] N}\\
+    where\\
+    $p_{11}$ = $\frac{k10 \cdot N_ \cdot N0}{1 + (\frac{T_A}{C_{t3}})}$
+\end{center}
+
+*Note: The previous two equations need extra scrutiny. I'm very confused how to translate.
+
+The third term in equation (5) is natural decay of neutrophils:
+
+\begin{center}
+    \ce{N ->[$\mu_N$] $\emptyset$}
+\end{center}
+
+\hrule
+
+\begin{center}
+        (6) $\displaystyle \frac{dT_A}{dt} = k_4\frac{B_e}{C_{tb} + B_e}\quad - \mu_{T_A} T $
+\end{center}
+
+The first term in equation (6) is production of toxin:
+
+\begin{center}
+    \ce{B_e ->[$p_{13}$] $T_A$} \\
+    where\\
+    $p_{13}$ = $k4 \cdot (\frac{B_e}{C_{tb} + B_e})$
+\end{center}
+
+The second term in equation (6) is natural decay of toxins:
+
+\begin{center}
+    \ce{T_A ->[$\mu_{TA}$] $\emptyset$}
+\end{center}
+
+\newpage
+
+\section{Reactions}
+\begin{table}[h]
+\captionof{table}{Reactions} \label{tab:reactions}
+\begin{tabular}{l l l l l p{0.4\linewidth}}
+\toprule
+Name & Reactants    & Rate      & Product   & Equation                  & Description     \\
+\midrule
+R1  & $n_s$ S       & $p_1$     
+                                & $H_0$     &  \ce{$n_s$ S ->[$p_1$] H_0}   & Converts spores to initial intralung Host cells  \\
+                            
+R2  & $H_0$         & $k_3$     & $H_{LN}$  & \ce{$H_0$ ->[$k_3$] $H_{LN}$}   & Host cell migration to lymphatic system \\
+
+R3  & $\emptyset$   & $S_E$     & E         & \ce{$\emptyset$ ->[$S_E$] E} & Lymphocyte source \\
+
+R4  & $E$           & $\mu_E$   & $\emptyset$ & \ce{E ->[$\mu_E$] $\emptyset$}          & Natural lymphocyte decay \\
+
+R5  & $E + B_e$     & $k_1$     & $\emptyset$ & \ce{E + B_e ->[$k_1$] $\emptyset$} & Death of lymphocyte \\
+
+R6  & $H_{LN}$      & $k_3n_BH$  & $B_e$     & \ce{H_{LN} ->[$k_3n_BH$] $B_e$} & Growth from Host cell releasing active bacteria \\
+
+R7  & $\emptyset$   & $p_7$ 
+                                & $B_e$     & \ce{$\emptyset$ ->[$p_7$] $B_e$} & Active bacterial growth \\
+                                
+R8  & E + $B_e$     & $k_6$     & $\emptyset$ & \ce{E + B_e ->[$k_6$] $\emptyset$} & Decay of bacteria from lymphocyte response \\
+
+R9  & N + $B_e$     & $p_9$ 
+                                & $\emptyset$ & \ce{N + B_e ->[$p_9$] $\emptyset$} & Bacterial death by neutrophils (inhibited by toxin) \\
+                                
+R10 & $B_e$ + E     & $p_10$
+                                & N         & \ce{$B_e$ + E ->[$p_{10}$] N} & Neutrophil recruitment from decaying lymphocytes (inhibited by toxin) \\
+                                
+R11 & N             & $p_11$ 
+                                & N         & \ce{N ->[$p_{11}$] N} & Neutrophil recruitment from primed neutrophils (inhibited by toxin) \\
+                                
+R12 & N             & $\mu_N$   &$\emptyset$  & \ce{N ->[$\mu_N$] $\emptyset$} & Natural decay of neutrophils\\
+
+R13 & $B_e$         & $p_13$ 
+                                & $T_A$     & \ce{B_e ->[$p_{13}$] $T_A$} & Toxin growth \\
+                                
+R14 & $T_A$         &$\mu_{TA}$ & $\emptyset$ & \ce{T_A ->[$\mu_{TA}$] $\emptyset$} & Toxin decay \\
+\midrule
+\end{tabular}\par
+\bigskip
+\centering
+{This table lists the reactions used in the GillesPy2 model.}
+\end{table}
+\pagebreak
+\subsection{Propensity Functions ($p_n$)}
+\begin{itemize}
+    \item $p_1$: $\displaystyle \frac{k_2 S \frac{s_A}{k_2 S + \mu_A}}{n_s}$
+    \item $p_7$: $k_5 \cdot (1 - \frac{B_e}{B_{emax}})$
+    \item $p_9$: $\frac{k_8 \cdot N \cdot B_e}{1 + (\frac{T_A}{C_{t1}})}$
+    \item $p_{10}$: $\frac{k_9 \cdot B_e \cdot N_0}{1 + (\frac{T_A}{C_{t2}})}$
+    \item $p_{11}$: $\frac{k10 \cdot N_ \cdot N0}{1 + (\frac{T_A}{C_{t3}})}$
+    \item $p_{13}$: $k4 \cdot (\frac{B_e}{C_{tb} + B_e})$
+\end{itemize}
+
+\end{document}
