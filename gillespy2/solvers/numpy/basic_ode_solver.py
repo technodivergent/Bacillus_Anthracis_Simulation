@@ -21,6 +21,7 @@ class BasicODESolver(GillesPySolver):
         """
         curr_state = {}
         state_change = {}
+        #   TODO    Fix Volume to take input volume
         curr_state['vol'] = 1
         propensity = {}
         results = []
@@ -46,7 +47,7 @@ class BasicODESolver(GillesPySolver):
 
     @classmethod
     def run(self, model, t=20, number_of_trajectories=1,
-            increment=0.05, seed=None, debug=False, profile=False, show_labels=False, **kwargs):
+            increment=0.05, seed=None, debug=False, profile=False, show_labels=True, **kwargs):
         """
 
         :param model: gillespy2.model class object
@@ -60,7 +61,12 @@ class BasicODESolver(GillesPySolver):
         :param kwargs:
         :return:
         """
-        results = []
+
+        if show_labels:
+            results = []
+        else:
+            num_save_times = int((t / increment)) + 1
+            results = np.empty((number_of_trajectories, num_save_times, (len(model.listOfSpecies)+1)))
         for traj_num in range(number_of_trajectories):
             y0 = []
             for s in model.listOfSpecies:
@@ -68,7 +74,9 @@ class BasicODESolver(GillesPySolver):
             time = np.arange(0, t, increment)
             result = odeint(BasicODESolver.rhs, y0, time,
                          args=(model.listOfSpecies, model.listOfParameters, model.listOfReactions))
-            if show_labels==True:
+
+            #   TODO: Optimize show_labels
+            if show_labels:
                 results_as_dict = {}
                 results_as_dict['time'] = []
                 for i in range(len(time)):
@@ -79,13 +87,11 @@ class BasicODESolver(GillesPySolver):
                         results_as_dict[s].append(result[j][i])
                 results.append(results_as_dict)
             else:
-                results_as_list = np.empty((len(result), len(model.listOfSpecies)+1))
                 for i in range(len(time)):
-                    results_as_list[i, 0] = time[i]
+                    results[traj_num, i, 0] = time[i]
                 for i, s in enumerate(model.listOfSpecies):
                     for j in range(len(result)):
-                        results_as_list[j, i+1] = result[j, i]
-                results.append(results_as_list)
+                        results[traj_num, j, i+1] = result[j, i]
 
         return results
         # return[results, time]

@@ -160,7 +160,7 @@ class BasicTauLeapingSolver(GillesPySolver):
 
     @classmethod
     def run(self, model, t=20, number_of_trajectories=1, increment=0.05, seed=None, profile=False,
-            debug=False, show_labels=False, stochkit_home=None, **kwargs):
+            debug=False, show_labels=True, stochkit_home=None, **kwargs):
         """
                 Function calling simulation of the model. This is typically called by the run function in GillesPy2 model
                 objects and will inherit those parameters which are passed with the model as the arguments this run function.
@@ -199,7 +199,12 @@ class BasicTauLeapingSolver(GillesPySolver):
             print("t = ", t)
             print("increment = ", increment)
 
-        trajectories = []
+        if show_labels:
+            trajectories = []
+        else:
+            num_save_points = int(t / increment) + 1
+            trajectories = numpy.empty((number_of_trajectories, num_save_points, len(model.listOfSpecies)+1))
+
         for trajectory in range(number_of_trajectories):
             random.seed(seed)
             y0 = [0] * (len(model.listOfReactions) + len(model.listOfRateRules))
@@ -284,14 +289,14 @@ class BasicTauLeapingSolver(GillesPySolver):
                     results['time'].append(save_time)
                     for i, s in enumerate(model.listOfSpecies):
                         results[s].append(curr_state[s])
-                    trajectories.append(results)
                 else:
-                    results[trajectory][timestep][0] = save_time
+                    trajectories[trajectory][timestep][0] = save_time
                     for i, s in enumerate(model.listOfSpecies):
-                        results[trajectory][timestep][i + 1] = curr_state[s]
-                    trajectories = results
+                        trajectories[trajectory][timestep][i + 1] = curr_state[s]
                 save_time += increment
                 timestep += 1
+            if show_labels:
+               trajectories.append(results)
             if profile:
                 print(steps_taken)
                 print("Total Steps Taken: ", len(steps_taken))
