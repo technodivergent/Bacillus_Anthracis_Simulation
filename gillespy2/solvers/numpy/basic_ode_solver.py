@@ -49,7 +49,7 @@ class BasicODESolver(GillesPySolver):
 
     @classmethod
     def run(cls, model, t=20, number_of_trajectories=1,
-            increment=0.05, seed=None, debug=False, profile=False, show_labels=True, **kwargs):
+            increment=0.05, seed=None, debug=False, profile=False, show_labels=True, max_steps=0, **kwargs):
         """
 
         :param model: gillespy2.model class object
@@ -69,7 +69,7 @@ class BasicODESolver(GillesPySolver):
 
         start_state = [model.listOfSpecies[species].initial_value for species in model.listOfSpecies]
         timeline = np.linspace(0, t, (t // increment + 1))
-        result = odeint(BasicODESolver.rhs, start_state, timeline, args=(model,), mxstep=50000000)
+        result = odeint(BasicODESolver.rhs, start_state, timeline, args=(model,), mxstep=max_steps)
 
         if show_labels:
             results_as_dict = {
