@@ -1,20 +1,18 @@
 """GillesPy2 Solver for ODE solutions."""
 
 from scipy.integrate import odeint
-import scipy.integrate as spi
+from scipy.integrate import solve_ivp
 import numpy as np
 from gillespy2.core import GillesPySolver
-from gillespy2.core import log
 
 
-class BasicODESolver(GillesPySolver):
+class BasicIVPSolver(GillesPySolver):
     """
     This Solver produces the deterministic continuous solution via ODE.
     """
-    name = "BasicODESolver"
-
+    name = "BasicIVPSolver"
     @staticmethod
-    def rhs(start_state, time, model):
+    def rhs(time, start_state, model):
         """
         The right hand side of the differential equation, uses scipy.integrate odeint
         :param start_state: state as a list
@@ -22,9 +20,13 @@ class BasicODESolver(GillesPySolver):
         :param model: model being simulated
         :return: integration step
         """
+        #   pylint: disable=W0613, W0123
         curr_state = {}
         state_change = {}
         curr_state['vol'] = model.volume
+
+        propensity = {}
+        results = []
 
         for i, species in enumerate(model.listOfSpecies):
             curr_state[species] = start_state[i]
@@ -33,7 +35,6 @@ class BasicODESolver(GillesPySolver):
         for parameter in model.listOfParameters:
             curr_state[parameter] = model.listOfParameters[parameter].value
 
-        propensity = {}
         for reaction in model.listOfReactions:
             propensity[reaction] = eval(
                 model.listOfReactions[reaction].propensity_function, curr_state)
@@ -43,13 +44,14 @@ class BasicODESolver(GillesPySolver):
             for prod in model.listOfReactions[reaction].products:
                 state_change[str(prod)] += propensity[reaction]
 
-        results = [state_change[species] for species in model.listOfSpecies]
+        for species in model.listOfSpecies:
+            results.append(state_change[species])
 
         return results
 
     @classmethod
     def run(cls, model, t=20, number_of_trajectories=1,
-            increment=0.05, seed=None, debug=False, profile=False, show_labels=True, max_steps=0, **kwargs):
+            increment=0.05, seed=None, debug=False, profile=False, show_labels=True, **kwargs):
         """
 
         :param model: gillespy2.model class object
@@ -64,22 +66,36 @@ class BasicODESolver(GillesPySolver):
         :param kwargs:
         :return:
         """
-        if number_of_trajectories > 1:
-            log.warning("Generating duplicate trajectories for model with ODE Solver. Consider running with only 1 trajectory.")
-
-        start_state = [model.listOfSpecies[species].initial_value for species in model.listOfSpecies]
-        timeline = np.linspace(0, t, (t // increment + 1))
-        result = odeint(BasicODESolver.rhs, start_state, timeline, args=(model,), mxstep=max_steps)
-
+        #   pylint: disable=R0913, R0914
         if show_labels:
-            results_as_dict = {
-                'time': timeline
-            }
-            for i, species in enumerate(model.listOfSpecies):
-                results_as_dict[species] = result[:, i]
-            results = [results_as_dict] * number_of_trajectories
+            results = []
         else:
-            result = np.hstack((np.expand_dims(timeline, -1), result))
-            results = np.stack([result] * number_of_trajectories, axis=0)
+            num_save_times = int((t / increment))
+            results = np.empty((number_of_trajectories,
+                                num_save_times, (len(model.listOfSpecies)+1)))
+        for traj_num in range(number_of_trajectories):
+            start_state = []
+            for species in model.listOfSpecies:
+                start_state.append(model.listOfSpecies[species].initial_value)
+            time = np.arange(0., t, increment, dtype=np.float64)
+            # result = odeint(BasicODESolver.rhs, start_state, time, args=(model,))
+            result = solve_ivp(fun=lambda t, y: BasicIVPSolver.rhs(t, y, model), y0=start_state, t_span=[0,t], method='RK45', t_eval=time)
+            print(result.y)
+            if show_labels:
+                results_as_dict = {}
+                results_as_dict['time'] = []
+                for i, timestamp in enumerate(time):
+                    results_as_dict['time'].append(timestamp)
+                for i, species in enumerate(model.listOfSpecies):
+                    results_as_dict[species] = []
+                    for row in result.y:
+                        results_as_dict[species].append(row[i])
+                results.append(results_as_dict)
+            else:
+                for i, timestamp in enumerate(time):
+                    results[traj_num, i, 0] = timestamp
+                for i in enumerate(model.listOfSpecies):
+                    for j in range(len(result)):
+                        results[traj_num, j, i[0]] = result[j, i[0]]
 
         return results
